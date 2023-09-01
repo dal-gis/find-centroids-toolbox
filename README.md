@@ -3,6 +3,10 @@
 ## Introduction
 Creates a new feature class with the centroid of all polygons for each category provided by a field.
 
+## Screenshot
+
+![Example Screenshot - Tool](images/example-screenshot.png "Example Screenshot - Tool")
+
 ## License
 
 > Copyright (c) 2023 Dalhousie University
