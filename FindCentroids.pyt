@@ -53,29 +53,15 @@ class ToolParameters:
             return parameter.valueAsText
         return None
     
+    def get_boolean(self, name: str) -> Union[bool, None]:
+        parameter = self.parameters[name]
+        if parameter:
+            return parameter.value or parameter.value == "True"
+        return None
+    
     def clear_messages(self) -> None:
         for param in self.parameters.values():
             param.clearMessage()
-
-def __replace_shape_field_name(field_name: str) -> str:
-
-    if "SHAPE@" == field_name:
-        return "SHAPE"
-    if "SHAPE@" in field_name:
-        return field_name.replace("@", "_")
-    
-    return field_name
-
-# aputil.tcursor
-# https://github.com/moosetraveller/aputil
-def tcursor(cursor: arcpy.da.SearchCursor) -> Generator[Tuple, None, None]:
-
-    fields = map(__replace_shape_field_name, cursor.fields)
-
-    tcursor_tuple = namedtuple(f"tcursor_{uuid.uuid4().hex}", fields)
-
-    for row in cursor:
-        yield tcursor_tuple(*row)
 
 
 def add_field_to(feature_class: str, template: arcpy.Field, required: bool = False):
@@ -135,6 +121,16 @@ class FindCentroidsTool(object):
 
         input_feature_class_field.parameterDependencies = [input_feature_class.name]
 
+        ignore_null_values = arcpy.Parameter(
+            name="ignore_null_values",
+            displayName="Ignore Null Values",
+            datatype="GPBoolean",
+            direction="Input",
+            parameterType="Required",
+        )
+
+        ignore_null_values.value = True
+
         output_feature_class = arcpy.Parameter(
             name="output_feature_class",
             displayName="Output Point Feature Class",
@@ -143,7 +139,7 @@ class FindCentroidsTool(object):
             parameterType="Required",
         )
 
-        return [input_feature_class, input_feature_class_field, output_feature_class]
+        return [input_feature_class, input_feature_class_field, ignore_null_values, output_feature_class]
 
     def isLicensed(self):
         return True
@@ -164,6 +160,7 @@ class FindCentroidsTool(object):
         input_feature_class = params.get_string("input_feature_class")
         group_field = params.get_string("group_field")
         output_feature_class = params.get_string("output_feature_class")
+        ignore_null_values = params.get_boolean("ignore_null_values")
 
         output_name = Path(output_feature_class).name
         output_path = str(Path(output_feature_class).parent)
@@ -174,7 +171,7 @@ class FindCentroidsTool(object):
         add_field_to(output_feature_class, field, True)
 
         with arcpy.da.SearchCursor(input_feature_class, [group_field]) as cursor:
-            unique_values = set(record[0] for record in cursor if record[0])
+            unique_values = set(record[0] for record in cursor if record[0] or not ignore_null_values)
 
         with arcpy.da.InsertCursor(output_feature_class, ["SHAPE@", group_field]) as input_cursor:
 
@@ -183,13 +180,28 @@ class FindCentroidsTool(object):
                 field = arcpy.AddFieldDelimiters(input_feature_class, group_field)
 
                 with use_memory() as selection, use_memory() as convex_hull:
+
+                    if value:
+                    
+                        if isinstance(value, (float, int, bool)):
+                            where_clause = f"{field} = {value}"
+                        else:
+                            where_clause = f"{field} = '{value}'"
+
+                    elif not ignore_null_values:
+
+                        where_clause = f"{field} IS Null"
+                    
+                    else:
+                        continue
                 
-                    arcpy.AddMessage(f"{field} = '{value}'")
-                    arcpy.management.MakeFeatureLayer(input_feature_class, selection, f"{field} = '{value}'")
+                    arcpy.AddMessage(where_clause)
+
+                    arcpy.management.MakeFeatureLayer(input_feature_class, selection, where_clause)
                     arcpy.management.MinimumBoundingGeometry(selection, convex_hull, "CONVEX_HULL", "ALL")
 
                     with arcpy.da.SearchCursor(convex_hull, "SHAPE@") as cursor:
-                        polygon: arcpy.Polygon = next(tcursor(cursor)).SHAPE
+                        polygon: arcpy.Polygon = next(cursor)[0]
                         centroid: arcpy.Point = polygon.trueCentroid
                         input_cursor.insertRow([centroid, value])
 
