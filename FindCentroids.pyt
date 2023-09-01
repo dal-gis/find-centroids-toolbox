@@ -25,16 +25,15 @@ SOFTWARE.
 """
 
 __author__ = "Thomas Zuberbuehler"
-__date__ = "August 2023"
+__date__ = "August/September 2023"
 __copyright__ = "(c) 2023 Dalhousie University"
 
 import arcpy, arcpy.da, arcpy.management
 
 from collections.abc import Generator
-from typing import List, Union, Tuple
+from typing import List
 
 import uuid
-from collections import namedtuple
 from contextlib import contextmanager
 
 from pathlib import Path
