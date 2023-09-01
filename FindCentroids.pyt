@@ -26,7 +26,7 @@ SOFTWARE.
 
 __author__ = "Thomas Zuberbuehler"
 __date__ = "August 2023"
-__copyright__ = "(c) 2022 Dalhousie University"
+__copyright__ = "(c) 2023 Dalhousie University"
 
 import arcpy, arcpy.da, arcpy.management
 
