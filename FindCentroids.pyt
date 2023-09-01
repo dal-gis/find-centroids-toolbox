@@ -53,28 +53,6 @@ def use_memory() -> Generator[str, None, None]:
         arcpy.management.Delete(name)
 
 
-# from aputil.toolbox.ToolParameters
-# https://github.com/moosetraveller/aputil
-class ToolParameters:
-
-    def __init__(self, parameters: List[arcpy.Parameter]):
-        self.parameters = {p.name: p for p in parameters}
-    
-    def __iter__(self):
-        self.iterator = iter(self.parameters.items())
-        return self
-    
-    def __next__(self):
-        return next(self.iterator)
-    
-    def get_parameter(self, name: str) -> Union[arcpy.Parameter, None]:
-        return self.parameters[name]
-    
-    def clear_messages(self) -> None:
-        for param in self.parameters.values():
-            param.clearMessage()
-
-
 class Toolbox(object):
 
     def __init__(self):
@@ -157,14 +135,15 @@ class FindCentroidsTool(object):
 
     def execute(self, parameters: List[arcpy.Parameter], _):
         
-        params = ToolParameters(parameters)
-        params.clear_messages()
+        params = {p.name: p for p in parameters}
 
-        input_feature_class = params.get_parameter("input_feature_class").valueAsText
-        group_field = params.get_parameter("group_field").valueAsText
-        output_feature_class = params.get_parameter("output_feature_class").valueAsText
-        ignore_null_values: bool = params.get_parameter("ignore_null_values").value
-        project_to_wgs84: bool = params.get_parameter("project_to_wgs84").value
+        for p in parameters: p.clearMessage()
+
+        input_feature_class = params.get("input_feature_class").valueAsText
+        group_field = params.get("group_field").valueAsText
+        output_feature_class = params.get("output_feature_class").valueAsText
+        ignore_null_values: bool = params.get("ignore_null_values").value
+        project_to_wgs84: bool = params.get("project_to_wgs84").value
 
         output_name = Path(output_feature_class).name
         output_path = str(Path(output_feature_class).parent)

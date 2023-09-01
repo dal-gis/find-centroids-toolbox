@@ -31,4 +31,4 @@ Creates a new feature class with the centroid of all polygons for each category 
 
 ## Dependencies
 
-None, but some utility functions are inspired/copied from [moosetraveller/aputil](https://github.com/moosetraveller/aputil).
+None
