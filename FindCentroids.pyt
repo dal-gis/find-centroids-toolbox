@@ -151,6 +151,16 @@ class FindCentroidsTool(object):
 
         ignore_null_values.value = True
 
+        project_to_wgs84 = arcpy.Parameter(
+            name="project_to_wgs84",
+            displayName="Project to WGS 1984",
+            datatype="GPBoolean",
+            direction="Input",
+            parameterType="Required",
+        )
+
+        project_to_wgs84.value = True
+
         output_feature_class = arcpy.Parameter(
             name="output_feature_class",
             displayName="Output Point Feature Class",
@@ -159,7 +169,7 @@ class FindCentroidsTool(object):
             parameterType="Required",
         )
 
-        return [input_feature_class, input_feature_class_field, ignore_null_values, output_feature_class]
+        return [input_feature_class, input_feature_class_field, ignore_null_values, project_to_wgs84, output_feature_class]
 
     def isLicensed(self):
         return True
@@ -181,10 +191,15 @@ class FindCentroidsTool(object):
         group_field = params.get_string("group_field")
         output_feature_class = params.get_string("output_feature_class")
         ignore_null_values = params.get_boolean("ignore_null_values")
+        project_to_wgs84 = params.get_boolean("project_to_wgs84")
 
         output_name = Path(output_feature_class).name
         output_path = str(Path(output_feature_class).parent)
-        spatial_reference = arcpy.Describe(input_feature_class).spatialReference
+        
+        if not project_to_wgs84:
+            spatial_reference = arcpy.Describe(input_feature_class).spatialReference
+        else:
+            spatial_reference = arcpy.SpatialReference(4326)
 
         arcpy.management.CreateFeatureclass(output_path, output_name, "Point", spatial_reference=spatial_reference)
         field: arcpy.Field = arcpy.ListFields(input_feature_class, group_field)[0]
@@ -221,8 +236,14 @@ class FindCentroidsTool(object):
                     arcpy.management.MinimumBoundingGeometry(selection, convex_hull, "CONVEX_HULL", "ALL")
 
                     with arcpy.da.SearchCursor(convex_hull, "SHAPE@") as cursor:
+                        
                         polygon: arcpy.Polygon = next(cursor)[0]
-                        centroid: arcpy.Point = polygon.trueCentroid
+
+                        if not project_to_wgs84:
+                            centroid: arcpy.Point = polygon.trueCentroid
+                        else:
+                            centroid: arcpy.Point = polygon.projectAs("WGS 1984").trueCentroid
+
                         input_cursor.insertRow([centroid, value])
 
         return output_feature_class
