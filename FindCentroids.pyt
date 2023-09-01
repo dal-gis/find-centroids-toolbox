@@ -67,37 +67,12 @@ class ToolParameters:
     def __next__(self):
         return next(self.iterator)
     
-    def get_string(self, name: str) -> Union[str, None]:
-        parameter = self.parameters[name]
-        if parameter:
-            return parameter.valueAsText
-        return None
-    
-    def get_boolean(self, name: str) -> Union[bool, None]:
-        parameter = self.parameters[name]
-        if parameter:
-            return parameter.value or parameter.value == "True"
-        return None
+    def get_parameter(self, name: str) -> Union[arcpy.Parameter, None]:
+        return self.parameters[name]
     
     def clear_messages(self) -> None:
         for param in self.parameters.values():
             param.clearMessage()
-
-
-def add_field_to(feature_class: str, template: arcpy.Field, required: bool = False):
-
-    arcpy.management.AddField(
-        feature_class, 
-        template.name, 
-        template.type, 
-        template.precision, 
-        template.scale, 
-        template.length, 
-        template.aliasName, 
-        template.isNullable, 
-        required,
-        template.domain
-    )
 
 
 class Toolbox(object):
@@ -174,24 +149,22 @@ class FindCentroidsTool(object):
     def isLicensed(self):
         return True
 
-    def updateParameters(self, parameters):
-        
-        return
+    def updateParameters(self, _):
+        pass
 
-    def updateMessages(self, parameters):
-        
-        return
+    def updateMessages(self, _):
+        pass
 
     def execute(self, parameters: List[arcpy.Parameter], _):
         
         params = ToolParameters(parameters)
         params.clear_messages()
 
-        input_feature_class = params.get_string("input_feature_class")
-        group_field = params.get_string("group_field")
-        output_feature_class = params.get_string("output_feature_class")
-        ignore_null_values = params.get_boolean("ignore_null_values")
-        project_to_wgs84 = params.get_boolean("project_to_wgs84")
+        input_feature_class = params.get_parameter("input_feature_class").valueAsText
+        group_field = params.get_parameter("group_field").valueAsText
+        output_feature_class = params.get_parameter("output_feature_class").valueAsText
+        ignore_null_values: bool = params.get_parameter("ignore_null_values").value
+        project_to_wgs84: bool = params.get_parameter("project_to_wgs84").value
 
         output_name = Path(output_feature_class).name
         output_path = str(Path(output_feature_class).parent)
@@ -202,8 +175,20 @@ class FindCentroidsTool(object):
             spatial_reference = arcpy.SpatialReference(4326)
 
         arcpy.management.CreateFeatureclass(output_path, output_name, "Point", spatial_reference=spatial_reference)
-        field: arcpy.Field = arcpy.ListFields(input_feature_class, group_field)[0]
-        add_field_to(output_feature_class, field, True)
+        template_field: arcpy.Field = arcpy.ListFields(input_feature_class, group_field)[0]
+
+        arcpy.management.AddField(
+            output_feature_class, 
+            template_field.name, 
+            template_field.type, 
+            template_field.precision, 
+            template_field.scale, 
+            template_field.length, 
+            template_field.aliasName, 
+            template_field.isNullable, 
+            True,
+            template_field.domain
+        )
 
         with arcpy.da.SearchCursor(input_feature_class, [group_field]) as cursor:
             unique_values = set(record[0] for record in cursor if record[0] or not ignore_null_values)
@@ -230,7 +215,7 @@ class FindCentroidsTool(object):
                     else:
                         continue
                 
-                    arcpy.AddMessage(where_clause)
+                    arcpy.AddMessage(f"Create Centroids for `{where_clause}`")
 
                     arcpy.management.MakeFeatureLayer(input_feature_class, selection, where_clause)
                     arcpy.management.MinimumBoundingGeometry(selection, convex_hull, "CONVEX_HULL", "ALL")
@@ -248,6 +233,6 @@ class FindCentroidsTool(object):
 
         return output_feature_class
 
-    def postExecute(self, parameters):
-        
-        return
+    def postExecute(self, _):
+        pass
+    
