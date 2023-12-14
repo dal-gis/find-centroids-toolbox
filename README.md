@@ -5,7 +5,7 @@ Creates a new feature class with the centroid of all polygons for each category 
 
 ## Screenshot
 
-![Example Screenshot - Tool](images/example-screenshot.png "Example Screenshot - Tool")
+![Example Screenshot - Tool](images/example-screenshot.png "Example Screenshot - Find Centroids Tool")
 
 ## License
 
