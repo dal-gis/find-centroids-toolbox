@@ -39,7 +39,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
-# from aputil.use_memory context manager
+# use_memory is copied from aputil.use_memory context manager
 # https://github.com/moosetraveller/aputil
 @contextmanager
 def use_memory() -> Generator[str, None, None]:
